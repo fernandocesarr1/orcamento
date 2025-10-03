@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adicionar Gasto - Controle Orçamentário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <header class="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                Orçamento Familiar
+            </h1>
+            <nav class="flex gap-2">
+                <a href="index.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Dashboard</a>
+                <a href="adicionar.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Adicionar</a>
+                <a href="graficos.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Gráficos</a>
+                <a href="historico.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Histórico</a>
+                <a href="pesquisa.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Pesquisa</a>
+                <a href="config.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Config</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl shadow-xl p-8 max-w-2xl mx-auto border border-slate-200">
+            <h2 class="text-3xl font-bold text-slate-800 mb-6 border-b pb-4">💸 Adicionar Novo Gasto</h2>
+            <form id="gasto-form" class="space-y-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Valor (R$) <span class="text-red-500">*</span></label>
+                        <input type="number" step="0.01" id="valor" placeholder="0,00" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">Data <span class="text-red-500">*</span></label>
+                        <input type="date" id="data" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"/>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Responsável <span class="text-red-500">*</span></label>
+                    <select id="responsavel" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Descrição <span class="text-red-500">*</span></label>
+                    <textarea id="descricao" placeholder="Ex: Compras da semana" rows="3" required class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Tipo de Gasto</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" id="btn-variavel" onclick="selectTipo('variavel')" class="px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-blue-600 text-white shadow-md">Variável</button>
+                        <button type="button" id="btn-fixo" onclick="selectTipo('fixo')" class="px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200">Fixo</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Categoria</label>
+                    <select id="categoria" class="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">-- Selecione --</option>
+                    </select>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="limparForm()" class="flex-1 bg-slate-200 text-slate-800 py-4 rounded-xl font-bold text-lg hover:bg-slate-300 transition-all duration-300">
+                        Limpar
+                    </button>
+                    <button type="submit" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
+                        Adicionar Gasto
+                    </button>
+                </div>
+            </form>
+            <div class="mt-8 pt-4 border-t border-slate-200 text-center">
+                <button onclick="window.location.href='categorias.html'" class="text-blue-600 hover:underline font-medium text-sm">Gerenciar Categorias</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
+            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
+            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
+            projectId: "orcamento-familiar-dc2e6",
+            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
+            messagingSenderId: "21809188621",
+            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
+            measurementId: "G-4E95DZRK3F"
+        };
+
+        let database, appData = {}, tipoAtual = 'variavel';
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        function getTodayDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function loadData() {
+            database.ref('appData').once('value', (snapshot) => {
+                appData = snapshot.val() || {
+                    categorias: { fixas: ['Escola', 'Diarista', 'Internet', 'Água', 'Luz', 'Clube'], variaveis: ['Supermercado', 'Farmácia', 'Lazer'] },
+                    nomes: ['Fernando', 'Estefania']
+                };
+                
+                const selectResp = document.getElementById('responsavel');
+                selectResp.innerHTML = '<option value="">-- Selecione --</option>';
+                appData.nomes.forEach(nome => {
+                    const option = document.createElement('option');
+                    option.value = nome;
+                    option.textContent = nome;
+                    selectResp.appendChild(option);
+                });
+                
+                updateCategorias();
+            });
+        }
+
+        function selectTipo(tipo) {
+            tipoAtual = tipo;
+            document.getElementById('btn-variavel').className = tipo === 'variavel' ? 
+                'px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-blue-600 text-white shadow-md' : 
+                'px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200';
+            document.getElementById('btn-fixo').className = tipo === 'fixo' ? 
+                'px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-blue-600 text-white shadow-md' : 
+                'px-4 py-3 rounded-lg text-center font-semibold transition-colors bg-slate-100 text-slate-700 hover:bg-slate-200';
+            updateCategorias();
+        }
+
+        function updateCategorias() {
+            const select = document.getElementById('categoria');
+            select.innerHTML = '<option value="">-- Selecione --</option>';
+            const categorias = tipoAtual === 'fixo' ? appData.categorias.fixas : appData.categorias.variaveis;
+            categorias.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat;
+                option.textContent = cat;
+                select.appendChild(option);
+            });
+        }
+
+        function limparForm() {
+            document.getElementById('gasto-form').reset();
+            document.getElementById('data').value = getTodayDateString();
+            selectTipo('variavel');
+        }
+
+        function logAction(actionType, gastoData) {
+            const logEntry = {
+                action: actionType,
+                timestamp: new Date().toISOString(),
+                gasto: gastoData
+            };
+            database.ref('notificacoes').push(logEntry);
+        }
+
+        document.getElementById('gasto-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const gasto = {
+                id: Date.now(),
+                tipo: tipoAtual,
+                categoria: document.getElementById('categoria').value,
+                valor: parseFloat(document.getElementById('valor').value),
+                data: document.getElementById('data').value,
+                descricao: document.getElementById('descricao').value,
+                responsavel: document.getElementById('responsavel').value
+            };
+
+            if (!gasto.valor || !gasto.data || !gasto.descricao || !gasto.responsavel) {
+                alert('⚠️ Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+
+            database.ref('gastos/' + gasto.id).set(gasto);
+            logAction('criação', gasto);
+            
+            alert('Gasto adicionado com sucesso! 🎉');
+            limparForm();
+            window.location.href = 'index.html';
+        });
+
+        document.getElementById('data').value = getTodayDateString();
+        loadData();
+    </script>
+</body>
+</html>
