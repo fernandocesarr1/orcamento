@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Controle Orçamentário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <!-- Menu Superior -->
+    <header class="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                Orçamento Familiar
+            </h1>
+            <nav class="flex gap-2">
+                <a href="adicionar.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Adicionar</a>
+                <a href="dashboard.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Dashboard</a>
+                <a href="graficos.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Gráficos</a>
+                <a href="historico.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Histórico</a>
+                <a href="pesquisa.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Pesquisa</a>
+                <a href="config.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Config</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="container mx-auto px-4 py-8">
+        <div id="dashboard-content"></div>
+    </main>
+
+    <!-- Modal Editar Nomes -->
+    <div id="edit-names-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Editar Nomes</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Pessoa 1</label>
+                    <input type="text" id="nome1" class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Pessoa 2</label>
+                    <input type="text" id="nome2" class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeEditNames()" class="flex-1 px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300">Cancelar</button>
+                    <button onclick="saveNames()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
+            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
+            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
+            projectId: "orcamento-familiar-dc2e6",
+            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
+            messagingSenderId: "21809188621",
+            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
+            measurementId: "G-4E95DZRK3F"
+        };
+
+        let database, appData = {}, gastos = [];
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+
+        // Verificar autenticação
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            window.location.href = 'index.html';
+        }
+
+        function loadData() {
+            database.ref('appData').on('value', (snapshot) => {
+                appData = snapshot.val() || {
+                    categorias: { fixas: ['Escola', 'Diarista', 'Internet', 'Água', 'Luz', 'Clube'], variaveis: ['Supermercado', 'Farmácia', 'Lazer'] },
+                    limites: {},
+                    nomes: ['Fernando', 'Estefania'],
+                    limiteMensal: 0,
+                    limitesPorPessoa: {}
+                };
+                renderDashboard();
+            });
+
+            database.ref('gastos').on('value', (snapshot) => {
+                const data = snapshot.val();
+                gastos = data ? Object.values(data) : [];
+                renderDashboard();
+            });
+        }
+
+        function calcularTotalCategoria(categoria, tipo, mes, ano) {
+            return gastos.filter(g => {
+                const dataGasto = new Date(g.data + 'T00:00:00');
+                return g.categoria === categoria && g.tipo === tipo && 
+                    dataGasto.getMonth() === mes && dataGasto.getFullYear() === ano;
+            }).reduce((sum, g) => sum + g.valor, 0);
+        }
+
+        function calcularTotalPorPessoa(pessoa, mes, ano) {
+            return gastos.filter(g => {
+                const dataGasto = new Date(g.data + 'T00:00:00');
+                return g.responsavel === pessoa && dataGasto.getMonth() === mes && dataGasto.getFullYear() === ano;
+            }).reduce((sum, g) => sum + g.valor, 0);
+        }
+
+        function calcularSaldoAnual(ano) {
+            const gastosDoAno = gastos.filter(g => new Date(g.data + 'T00:00:00').getFullYear() === ano);
+            const total1 = gastosDoAno.filter(g => g.responsavel === appData.nomes[0]).reduce((sum, g) => sum + g.valor, 0);
+            const total2 = gastosDoAno.filter(g => g.responsavel === appData.nomes[1]).reduce((sum, g) => sum + g.valor, 0);
+            return total1 - total2;
+        }
+
+        function renderDashboard() {
+            const mes = new Date().getMonth();
+            const ano = new Date().getFullYear();
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+            
+            const gastosDoMes = gastos.filter(g => {
+                const d = new Date(g.data + 'T00:00:00');
+                return d.getMonth() === mes && d.getFullYear() === ano;
+            });
+            
+            const totalFixos = gastosDoMes.filter(g => g.tipo === 'fixo').reduce((sum, g) => sum + g.valor, 0);
+            const totalVariaveis = gastosDoMes.filter(g => g.tipo === 'variavel').reduce((sum, g) => sum + g.valor, 0);
+            const totalGeral = totalFixos + totalVariaveis;
+            
+            const total1 = calcularTotalPorPessoa(appData.nomes[0], mes, ano);
+            const total2 = calcularTotalPorPessoa(appData.nomes[1], mes, ano);
+            const diferenca = total1 - total2;
+            const diferencaAnual = calcularSaldoAnual(ano);
+            
+            const percentualMes = appData.limiteMensal > 0 ? Math.min((totalGeral / appData.limiteMensal) * 100, 100) : 0;
+            
+            const html = `
+                <div class="space-y-6">
+                    <div class="bg-white rounded-xl shadow p-6">
+                        <h2 class="text-xl font-bold text-slate-800 mb-4">Resumo de Gastos - ${meses[mes]} ${ano}</h2>
+                        
+                        <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg mb-6">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <p class="text-blue-100 text-sm font-medium">Total do Mês</p>
+                                    <p class="text-4xl font-bold mt-1">R$ ${totalGeral.toFixed(2)}</p>
+                                </div>
+                                <div class="text-right">
+                                    <input type="number" placeholder="Limite" value="${appData.limiteMensal || ''}" 
+                                        onchange="updateLimiteMensal(this.value)" 
+                                        class="w-24 px-2 py-1 text-sm text-slate-800 border-0 rounded-md"/>
+                                    <p class="text-xs text-blue-100 mt-1">Limite mensal</p>
+                                </div>
+                            </div>
+                            ${appData.limiteMensal > 0 ? `
+                                <div class="mt-3">
+                                    <div class="w-full bg-white/30 rounded-full h-3">
+                                        <div class="bg-white h-3 rounded-full" style="width: ${percentualMes}%"></div>
+                                    </div>
+                                    <p class="text-sm font-bold text-white mt-2">${percentualMes.toFixed(1)}% do limite</p>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gradient-to-br from-violet-50 to-purple-50 rounded-lg p-4 border border-violet-200">
+                                <p class="text-sm text-violet-700 font-medium">Gastos Fixos</p>
+                                <p class="text-3xl font-bold text-violet-900 mt-1">R$ ${totalFixos.toFixed(2)}</p>
+                            </div>
+                            <div class="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg p-4 border border-orange-200">
+                                <p class="text-sm text-orange-700 font-medium">Gastos Variáveis</p>
+                                <p class="text-3xl font-bold text-orange-900 mt-1">R$ ${totalVariaveis.toFixed(2)}</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-6 border-t border-slate-200">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-slate-800">Divisão de Gastos</h3>
+                                <button onclick="openEditNames()" class="text-sm text-blue-600 hover:underline font-medium">Editar Nomes</button>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${appData.nomes.map((nome, idx) => {
+                                    const total = idx === 0 ? total1 : total2;
+                                    const limite = appData.limitesPorPessoa[nome] || 0;
+                                    return `
+                                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                                            <div class="flex justify-between items-start mb-2">
+                                                <div>
+                                                    <p class="text-base font-semibold text-slate-700">${nome}</p>
+                                                    <p class="text-3xl font-bold text-slate-900 mt-1">R$ ${total.toFixed(2)}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <input type="number" placeholder="Limite" value="${limite || ''}" 
+                                                        onchange="updateLimitePessoa('${nome}', this.value)" 
+                                                        class="w-24 px-2 py-1 text-sm text-slate-800 border border-slate-300 rounded-md"/>
+                                                    <p class="text-xs text-slate-500 mt-1">Limite</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                            
+                            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                                    <p class="text-sm font-semibold text-indigo-800 mb-2">Saldo Total (${ano})</p>
+                                    ${diferencaAnual === 0 ? `
+                                        <p class="font-semibold text-emerald-700 text-center">Saldo anual equilibrado</p>
+                                    ` : `
+                                        <p class="text-xs text-slate-600 text-center">
+                                            <span class="font-bold">${diferencaAnual < 0 ? appData.nomes[0] : appData.nomes[1]}</span>
+                                            deve a
+                                            <span class="font-bold">${diferencaAnual < 0 ? appData.nomes[1] : appData.nomes[0]}</span>
+                                        </p>
+                                        <p class="text-3xl font-bold text-indigo-900 mt-1 text-center">R$ ${(Math.abs(diferencaAnual) / 2).toFixed(2)}</p>
+                                    `}
+                                </div>
+                                <div class="bg-sky-50 p-4 rounded-lg border border-sky-200">
+                                    <p class="text-sm font-semibold text-sky-800 mb-2">Saldo do Mês</p>
+                                    ${diferenca === 0 ? `
+                                        <p class="font-semibold text-emerald-700 text-center">Saldo do mês equilibrado</p>
+                                    ` : `
+                                        <p class="text-xs text-slate-600 text-center">
+                                            <span class="font-bold">${diferenca < 0 ? appData.nomes[0] : appData.nomes[1]}</span>
+                                            deve a
+                                            <span class="font-bold">${diferenca < 0 ? appData.nomes[1] : appData.nomes[0]}</span>
+                                        </p>
+                                        <p class="text-3xl font-bold text-sky-900 mt-1 text-center">R$ ${(Math.abs(diferenca) / 2).toFixed(2)}</p>
+                                    `}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow p-6">
+                        <h2 class="text-xl font-bold text-slate-800 mb-4">Gastos Fixos do Mês</h2>
+                        <div class="space-y-2">
+                            ${appData.categorias.fixas.map(cat => {
+                                const total = calcularTotalCategoria(cat, 'fixo', mes, ano);
+                                return `
+                                    <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg border border-slate-200">
+                                        <span class="text-sm font-semibold text-slate-700">${cat}</span>
+                                        <span class="text-lg font-bold text-slate-800">R$ ${total.toFixed(2)}</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow p-6">
+                        <h2 class="text-xl font-bold text-slate-800 mb-4">Gastos Variáveis</h2>
+                        <div class="space-y-4">
+                            ${appData.categorias.variaveis.map(cat => {
+                                const total = calcularTotalCategoria(cat, 'variavel', mes, ano);
+                                const limite = appData.limites[cat] || 0;
+                                return `
+                                    <div>
+                                        <div class="flex justify-between items-center mb-1">
+                                            <span class="font-semibold text-slate-700">${cat}</span>
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-bold text-slate-800 text-lg">R$ ${total.toFixed(2)}</span>
+                                                <input type="number" placeholder="Limite" value="${limite || ''}" 
+                                                    onchange="updateLimiteCategoria('${cat}', this.value)" 
+                                                    class="w-24 px-2 py-1 border border-slate-300 rounded-md text-sm"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('dashboard-content').innerHTML = html;
+        }
+
+        function updateLimiteMensal(value) {
+            appData.limiteMensal = parseFloat(value) || 0;
+            database.ref('appData').set(appData);
+        }
+
+        function updateLimitePessoa(nome, value) {
+            appData.limitesPorPessoa[nome] = parseFloat(value) || 0;
+            database.ref('appData').set(appData);
+        }
+
+        function updateLimiteCategoria(cat, value) {
+            appData.limites[cat] = parseFloat(value) || 0;
+            database.ref('appData').set(appData);
+        }
+
+        function openEditNames() {
+            document.getElementById('nome1').value = appData.nomes[0];
+            document.getElementById('nome2').value = appData.nomes[1];
+            document.getElementById('edit-names-modal').classList.remove('hidden');
+        }
+
+        function closeEditNames() {
+            document.getElementById('edit-names-modal').classList.add('hidden');
+        }
+
+        function saveNames() {
+            appData.nomes = [
+                document.getElementById('nome1').value.trim(),
+                document.getElementById('nome2').value.trim()
+            ];
+            database.ref('appData').set(appData);
+            closeEditNames();
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

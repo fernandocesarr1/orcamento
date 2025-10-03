@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico - Controle Orçamentário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <header class="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                Orçamento Familiar
+            </h1>
+            <nav class="flex gap-2">
+                <a href="adicionar.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Adicionar</a>
+                <a href="dashboard.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Dashboard</a>
+                <a href="graficos.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Gráficos</a>
+                <a href="historico.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Histórico</a>
+                <a href="pesquisa.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Pesquisa</a>
+                <a href="config.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Config</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl shadow p-6 max-w-3xl mx-auto">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">Histórico de Lançamentos</h2>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="exportToExcel()" class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-2 font-semibold text-sm shadow-sm hover:shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                        Excel
+                    </button>
+                    <button onclick="exportToPDF()" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all flex items-center gap-2 font-semibold text-sm shadow-sm hover:shadow-md">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                        PDF
+                    </button>
+                </div>
+            </div>
+            <div id="historico-content"></div>
+        </div>
+    </main>
+
+    <!-- Modal Editar -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">✏️ Editar Gasto</h3>
+            <form id="edit-form" class="space-y-4"></form>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
+            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
+            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
+            projectId: "orcamento-familiar-dc2e6",
+            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
+            messagingSenderId: "21809188621",
+            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
+            measurementId: "G-4E95DZRK3F"
+        };
+
+        let database, appData = {}, gastos = [], editingId = null;
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        function loadData() {
+            database.ref('appData').once('value', (snapshot) => {
+                appData = snapshot.val() || {
+                    categorias: { fixas: [], variaveis: [] },
+                    nomes: ['Fernando', 'Estefania']
+                };
+            });
+
+            database.ref('gastos').on('value', (snapshot) => {
+                const data = snapshot.val();
+                gastos = data ? Object.values(data) : [];
+                renderHistorico();
+            });
+        }
+
+        function renderHistorico() {
+            if (gastos.length === 0) {
+                document.getElementById('historico-content').innerHTML = '<p class="text-center text-slate-500 py-8">Nenhum gasto registrado ainda.</p>';
+                return;
+            }
+
+            const gastosOrdenados = [...gastos].sort((a, b) => new Date(b.data) - new Date(a.data));
+            const gastosAgrupados = gastosOrdenados.reduce((acc, gasto) => {
+                const mesAno = new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                if (!acc[mesAno]) acc[mesAno] = [];
+                acc[mesAno].push(gasto);
+                return acc;
+            }, {});
+
+            let html = '<div class="space-y-8">';
+            
+            Object.entries(gastosAgrupados).forEach(([mesAno, gastosDoMes]) => {
+                html += `
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-600 capitalize pb-2 mb-4 border-b-2 border-slate-200">${mesAno}</h3>
+                        <ul class="space-y-2">
+                `;
+                
+                gastosDoMes.forEach(gasto => {
+                    html += `
+                        <li class="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                            <div class="flex items-center gap-3 flex-1">
+                                <div class="text-center w-10">
+                                    <p class="font-bold text-lg text-blue-600">${new Date(gasto.data + 'T00:00:00').getDate()}</p>
+                                    <p class="text-xs text-slate-500">${new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short' })}</p>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="font-semibold text-slate-800">${gasto.categoria}</p>
+                                    <p class="text-sm text-slate-600">${gasto.descricao || 'Sem descrição'}</p>
+                                    <div class="mt-1 flex items-center gap-2 text-xs">
+                                        <span class="px-2 py-0.5 rounded-full font-medium ${gasto.tipo === 'fixo' ? 'bg-violet-100 text-violet-700' : 'bg-orange-100 text-orange-700'}">${gasto.tipo}</span>
+                                        <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${gasto.responsavel}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-lg text-slate-800 text-right whitespace-nowrap">R$ ${gasto.valor.toFixed(2)}</span>
+                                <button onclick="openEdit(${gasto.id})" class="text-slate-400 hover:text-blue-500 transition-colors p-1" title="Editar">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                                <button onclick="removerGasto(${gasto.id})" class="text-slate-400 hover:text-red-500 transition-colors p-1" title="Excluir">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                </button>
+                            </div>
+                        </li>
+                    `;
+                });
+                
+                html += '</ul></div>';
+            });
+            
+            html += '</div>';
+            document.getElementById('historico-content').innerHTML = html;
+        }
+
+        function openEdit(id) {
+            const gasto = gastos.find(g => g.id === id);
+            if (!gasto) return;
+            
+            editingId = id;
+            const categorias = gasto.tipo === 'fixo' ? appData.categorias.fixas : appData.categorias.variaveis;
+            
+            document.getElementById('edit-form').innerHTML = `
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Valor (R$)</label>
+                    <input type="number" step="0.01" id="edit-valor" value="${gasto.valor}" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Data</label>
+                    <input type="date" id="edit-data" value="${gasto.data}" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Responsável</label>
+                    <select id="edit-responsavel" required class="w-full px-4 py-2 border border-slate-300 rounded-lg">
+                        ${appData.nomes.map(nome => `<option value="${nome}" ${gasto.responsavel === nome ? 'selected' : ''}>${nome}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Descrição</label>
+                    <textarea id="edit-descricao" rows="2" required class="w-full px-4 py-2 border border-slate-300 rounded-lg">${gasto.descricao}</textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeEdit()" class="flex-1 px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300">Cancelar</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                </div>
+            `;
+            
+            document.getElementById('edit-modal').classList.remove('hidden');
+            
+            document.getElementById('edit-form').onsubmit = (e) => {
+                e.preventDefault();
+                saveEdit();
+            };
+        }
+
+        function closeEdit() {
+            document.getElementById('edit-modal').classList.add('hidden');
+            editingId = null;
+        }
+
+        function saveEdit() {
+            const updatedGasto = {
+                id: editingId,
+                tipo: gastos.find(g => g.id === editingId).tipo,
+                categoria: gastos.find(g => g.id === editingId).categoria,
+                valor: parseFloat(document.getElementById('edit-valor').value),
+                data: document.getElementById('edit-data').value,
+                responsavel: document.getElementById('edit-responsavel').value,
+                descricao: document.getElementById('edit-descricao').value
+            };
+            
+            database.ref('gastos/' + editingId).set(updatedGasto);
+            closeEdit();
+            alert('Gasto atualizado com sucesso!');
+        }
+
+        function removerGasto(id) {
+            if (confirm('Tem certeza que deseja excluir este gasto?')) {
+                database.ref('gastos/' + id).remove();
+            }
+        }
+
+        function exportToExcel() {
+            if (gastos.length === 0) {
+                alert('Não há gastos para exportar!');
+                return;
+            }
+
+            const dadosExportacao = gastos.map(gasto => ({
+                'Data': new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR'),
+                'Tipo': gasto.tipo === 'fixo' ? 'Fixo' : 'Variável',
+                'Categoria': gasto.categoria,
+                'Responsável': gasto.responsavel,
+                'Valor (R$)': gasto.valor.toFixed(2),
+                'Descrição': gasto.descricao || '-'
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dadosExportacao);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Gastos');
+            XLSX.writeFile(wb, `Orcamento_Familiar_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`);
+            alert('Planilha exportada com sucesso!');
+        }
+
+        function exportToPDF() {
+            if (gastos.length === 0) {
+                alert('Não há gastos para exportar!');
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFontSize(18);
+            doc.text('Controle Orçamentário Familiar', 14, 20);
+            doc.setFontSize(11);
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
+
+            const dadosExportacao = gastos.map(gasto => [
+                new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR'),
+                gasto.tipo === 'fixo' ? 'Fixo' : 'Variável',
+                gasto.categoria,
+                gasto.responsavel,
+                `R$ ${gasto.valor.toFixed(2)}`,
+                gasto.descricao || '-'
+            ]);
+
+            doc.autoTable({
+                startY: 35,
+                head: [['Data', 'Tipo', 'Categoria', 'Responsável', 'Valor', 'Descrição']],
+                body: dadosExportacao,
+                theme: 'striped'
+            });
+
+            doc.save(`Orcamento_Familiar_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`);
+            alert('PDF exportado com sucesso!');
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

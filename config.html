@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Controle Orçamentário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <header class="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                Orçamento Familiar
+            </h1>
+            <nav class="flex gap-2">
+                <a href="index.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Dashboard</a>
+                <a href="adicionar.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Adicionar</a>
+                <a href="graficos.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Gráficos</a>
+                <a href="historico.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Histórico</a>
+                <a href="pesquisa.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Pesquisa</a>
+                <a href="config.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Config</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl shadow p-6 max-w-2xl mx-auto">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">⚙️ Configurações</h2>
+            
+            <div class="space-y-6">
+                <!-- Gerenciar Categorias -->
+                <div class="border-b border-slate-200 pb-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Categorias</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-medium text-slate-700">Categorias Fixas</label>
+                                <button onclick="openAddCategory('fixo')" class="text-sm text-blue-600 hover:underline font-medium">+ Adicionar</button>
+                            </div>
+                            <div id="categorias-fixas" class="flex flex-wrap gap-2"></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="text-sm font-medium text-slate-700">Categorias Variáveis</label>
+                                <button onclick="openAddCategory('variavel')" class="text-sm text-blue-600 hover:underline font-medium">+ Adicionar</button>
+                            </div>
+                            <div id="categorias-variaveis" class="flex flex-wrap gap-2"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notificações -->
+                <div class="border-b border-slate-200 pb-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Relatórios</h3>
+                    <button onclick="window.open('notificacoes.html', '_blank')" class="bg-gray-600 text-white px-5 py-2.5 rounded-lg hover:bg-gray-700 transition-colors font-medium text-sm">
+                        Ver Relatório de Notificações
+                    </button>
+                </div>
+
+                <!-- Segurança -->
+                <div class="border-b border-slate-200 pb-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Segurança</h3>
+                    <button onclick="openChangePassword()" class="bg-blue-600 text-white px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                        Alterar Senha
+                    </button>
+                </div>
+
+                <!-- Sessão -->
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Sessão</h3>
+                    <button onclick="handleLogout()" class="bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition-colors font-medium text-sm">
+                        Sair do Sistema
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Adicionar Categoria -->
+    <div id="add-category-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Adicionar Categoria</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Nome da Categoria</label>
+                    <input type="text" id="new-category-name" placeholder="Ex: Transporte" class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeAddCategory()" class="flex-1 px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300">Cancelar</button>
+                    <button onclick="addCategory()" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Adicionar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Alterar Senha -->
+    <div id="change-password-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">Alterar Senha</h3>
+            <form id="password-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Nova Senha</label>
+                    <input type="password" id="new-password" placeholder="Mínimo 6 caracteres" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Confirmar Nova Senha</label>
+                    <input type="password" id="confirm-password" placeholder="Digite novamente" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div id="password-error" class="hidden bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg text-sm"></div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeChangePassword()" class="flex-1 px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300">Cancelar</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
+            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
+            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
+            projectId: "orcamento-familiar-dc2e6",
+            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
+            messagingSenderId: "21809188621",
+            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
+            measurementId: "G-4E95DZRK3F"
+        };
+
+        let database, appData = {}, currentCategoryType = '';
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        function loadData() {
+            database.ref('appData').on('value', (snapshot) => {
+                appData = snapshot.val() || {
+                    categorias: { 
+                        fixas: ['Escola', 'Diarista', 'Internet', 'Água', 'Luz', 'Clube'], 
+                        variaveis: ['Supermercado', 'Farmácia', 'Lazer'] 
+                    },
+                    limites: {},
+                    nomes: ['Fernando', 'Estefania']
+                };
+                renderCategorias();
+            });
+        }
+
+        function renderCategorias() {
+            const fixasDiv = document.getElementById('categorias-fixas');
+            const variaveisDiv = document.getElementById('categorias-variaveis');
+            
+            fixasDiv.innerHTML = appData.categorias.fixas.map(cat => `
+                <span class="inline-flex items-center gap-2 px-3 py-1 bg-violet-100 text-violet-700 rounded-full text-sm font-medium">
+                    ${cat}
+                    <button onclick="removeCategory('fixo', '${cat}')" class="hover:text-violet-900">×</button>
+                </span>
+            `).join('');
+            
+            variaveisDiv.innerHTML = appData.categorias.variaveis.map(cat => `
+                <span class="inline-flex items-center gap-2 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
+                    ${cat}
+                    <button onclick="removeCategory('variavel', '${cat}')" class="hover:text-orange-900">×</button>
+                </span>
+            `).join('');
+        }
+
+        function openAddCategory(tipo) {
+            currentCategoryType = tipo;
+            document.getElementById('new-category-name').value = '';
+            document.getElementById('add-category-modal').classList.remove('hidden');
+        }
+
+        function closeAddCategory() {
+            document.getElementById('add-category-modal').classList.add('hidden');
+            currentCategoryType = '';
+        }
+
+        function addCategory() {
+            const name = document.getElementById('new-category-name').value.trim();
+            if (!name) return;
+            
+            const list = currentCategoryType === 'fixo' ? appData.categorias.fixas : appData.categorias.variaveis;
+            if (!list.includes(name)) {
+                list.push(name);
+                database.ref('appData').set(appData);
+            }
+            closeAddCategory();
+        }
+
+        function removeCategory(tipo, name) {
+            if (!confirm(`Deseja remover a categoria "${name}"?`)) return;
+            
+            const list = tipo === 'fixo' ? appData.categorias.fixas : appData.categorias.variaveis;
+            const index = list.indexOf(name);
+            if (index > -1) {
+                list.splice(index, 1);
+                database.ref('appData').set(appData);
+            }
+        }
+
+        function openChangePassword() {
+            document.getElementById('password-error').classList.add('hidden');
+            document.getElementById('password-form').reset();
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePassword() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        function simpleHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return hash.toString();
+        }
+
+        document.getElementById('password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            const errorDiv = document.getElementById('password-error');
+            
+            if (newPassword.length < 6) {
+                errorDiv.textContent = 'A senha deve ter pelo menos 6 caracteres';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                errorDiv.textContent = 'As senhas não coincidem';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+            
+            const newPasswordHash = simpleHash(newPassword);
+            database.ref('auth/passwordHash').set(newPasswordHash);
+            
+            closeChangePassword();
+            alert('Senha alterada com sucesso!');
+        });
+
+        function handleLogout() {
+            if (confirm('Deseja realmente sair do sistema?')) {
+                sessionStorage.removeItem('authenticated');
+                window.location.href = 'login.html';
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

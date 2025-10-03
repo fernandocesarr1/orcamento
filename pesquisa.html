@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pesquisa - Controle Orçamentário</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <header class="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                Orçamento Familiar
+            </h1>
+            <nav class="flex gap-2">
+                <a href="adicionar.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Adicionar</a>
+                <a href="dashboard.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Dashboard</a>
+                <a href="graficos.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Gráficos</a>
+                <a href="historico.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Histórico</a>
+                <a href="pesquisa.html" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold text-sm">Pesquisa</a>
+                <a href="config.html" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 font-semibold text-sm">Config</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-xl shadow p-6 max-w-3xl mx-auto">
+            <h2 class="text-3xl font-bold text-slate-800 mb-6">🔍 Pesquisar Lançamentos</h2>
+            
+            <div class="mb-6">
+                <div class="relative">
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Digite para buscar: categoria, descrição, responsável, valor, data..."
+                        class="w-full px-4 py-3 pr-24 bg-slate-50 border-2 border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        autofocus
+                    />
+                    <div class="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                        <button id="clear-btn" class="hidden px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800 font-medium">
+                            Limpar
+                        </button>
+                        <button id="search-btn" class="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm">
+                            Buscar
+                        </button>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">A busca é realizada em todos os campos: categoria, descrição, responsável, valor, data e tipo.</p>
+            </div>
+
+            <div id="search-results"></div>
+        </div>
+    </main>
+
+    <!-- Modal Editar -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">✏️ Editar Gasto</h3>
+            <form id="edit-form" class="space-y-4"></form>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
+            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
+            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
+            projectId: "orcamento-familiar-dc2e6",
+            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
+            messagingSenderId: "21809188621",
+            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
+            measurementId: "G-4E95DZRK3F"
+        };
+
+        let database, appData = {}, gastos = [], editingId = null, searchQuery = '';
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+
+        if (sessionStorage.getItem('authenticated') !== 'true') {
+            window.location.href = 'login.html';
+        }
+
+        function loadData() {
+            database.ref('appData').once('value', (snapshot) => {
+                appData = snapshot.val() || {
+                    categorias: { fixas: [], variaveis: [] },
+                    nomes: ['Fernando', 'Estefania']
+                };
+            });
+
+            database.ref('gastos').once('value', (snapshot) => {
+                const data = snapshot.val();
+                gastos = data ? Object.values(data) : [];
+                showInitialMessage();
+            });
+        }
+
+        function showInitialMessage() {
+            document.getElementById('search-results').innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🔎</div>
+                    <p class="text-slate-600">Digite algo no campo acima para buscar nos seus lançamentos.</p>
+                </div>
+            `;
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value.trim();
+            
+            if (!searchQuery) {
+                showInitialMessage();
+                document.getElementById('clear-btn').classList.add('hidden');
+                return;
+            }
+
+            document.getElementById('clear-btn').classList.remove('hidden');
+            const query = searchQuery.toLowerCase();
+            
+            const results = gastos.filter(gasto => {
+                const categoria = gasto.categoria.toLowerCase();
+                const descricao = (gasto.descricao || '').toLowerCase();
+                const responsavel = gasto.responsavel.toLowerCase();
+                const valor = gasto.valor.toString();
+                const data = new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR');
+                const tipo = gasto.tipo === 'fixo' ? 'fixo' : 'variável';
+                
+                return categoria.includes(query) || descricao.includes(query) || 
+                       responsavel.includes(query) || valor.includes(query) || 
+                       data.includes(query) || tipo.includes(query);
+            }).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+            displayResults(results);
+        }
+
+        function displayResults(results) {
+            if (results.length === 0) {
+                document.getElementById('search-results').innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4">😕</div>
+                        <p class="text-slate-600">Nenhum resultado encontrado para "<strong>${searchQuery}</strong>".</p>
+                        <p class="text-sm text-slate-500 mt-2">Tente buscar por outros termos.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div>
+                    <div class="mb-4">
+                        <p class="text-sm text-slate-600">
+                            Encontrados <strong class="text-blue-600">${results.length}</strong> resultado${results.length !== 1 ? 's' : ''} para "<strong>${searchQuery}</strong>"
+                        </p>
+                    </div>
+                    <ul class="space-y-3">
+            `;
+
+            results.forEach(gasto => {
+                html += `
+                    <li class="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200 hover:bg-slate-100 transition-colors">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="text-center w-16">
+                                <p class="font-bold text-lg text-blue-600">${new Date(gasto.data + 'T00:00:00').getDate()}</p>
+                                <p class="text-xs text-slate-500">${new Date(gasto.data + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</p>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-slate-800">${gasto.categoria}</p>
+                                <p class="text-sm text-slate-600">${gasto.descricao || 'Sem descrição'}</p>
+                                <div class="mt-1 flex items-center gap-2 text-xs">
+                                    <span class="px-2 py-0.5 rounded-full font-medium ${gasto.tipo === 'fixo' ? 'bg-violet-100 text-violet-700' : 'bg-orange-100 text-orange-700'}">${gasto.tipo}</span>
+                                    <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">${gasto.responsavel}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-lg text-slate-800 text-right whitespace-nowrap">R$ ${gasto.valor.toFixed(2)}</span>
+                            <button onclick="openEdit(${gasto.id})" class="text-slate-400 hover:text-blue-500 transition-colors p-1" title="Editar">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                            </button>
+                            <button onclick="removerGasto(${gasto.id})" class="text-slate-400 hover:text-red-500 transition-colors p-1" title="Excluir">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                        </div>
+                    </li>
+                `;
+            });
+
+            html += '</ul></div>';
+            document.getElementById('search-results').innerHTML = html;
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            searchQuery = '';
+            document.getElementById('clear-btn').classList.add('hidden');
+            showInitialMessage();
+        }
+
+        function openEdit(id) {
+            const gasto = gastos.find(g => g.id === id);
+            if (!gasto) return;
+            
+            editingId = id;
+            
+            document.getElementById('edit-form').innerHTML = `
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Valor (R$)</label>
+                    <input type="number" step="0.01" id="edit-valor" value="${gasto.valor}" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Data</label>
+                    <input type="date" id="edit-data" value="${gasto.data}" required class="w-full px-4 py-2 border border-slate-300 rounded-lg"/>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Responsável</label>
+                    <select id="edit-responsavel" required class="w-full px-4 py-2 border border-slate-300 rounded-lg">
+                        ${appData.nomes.map(nome => `<option value="${nome}" ${gasto.responsavel === nome ? 'selected' : ''}>${nome}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Descrição</label>
+                    <textarea id="edit-descricao" rows="2" required class="w-full px-4 py-2 border border-slate-300 rounded-lg">${gasto.descricao}</textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeEdit()" class="flex-1 px-4 py-2 bg-slate-200 text-slate-800 rounded-lg hover:bg-slate-300">Cancelar</button>
+                    <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                </div>
+            `;
+            
+            document.getElementById('edit-modal').classList.remove('hidden');
+            
+            document.getElementById('edit-form').onsubmit = (e) => {
+                e.preventDefault();
+                saveEdit();
+            };
+        }
+
+        function closeEdit() {
+            document.getElementById('edit-modal').classList.add('hidden');
+            editingId = null;
+        }
+
+        function saveEdit() {
+            const updatedGasto = {
+                id: editingId,
+                tipo: gastos.find(g => g.id === editingId).tipo,
+                categoria: gastos.find(g => g.id === editingId).categoria,
+                valor: parseFloat(document.getElementById('edit-valor').value),
+                data: document.getElementById('edit-data').value,
+                responsavel: document.getElementById('edit-responsavel').value,
+                descricao: document.getElementById('edit-descricao').value
+            };
+            
+            database.ref('gastos/' + editingId).set(updatedGasto);
+            
+            const index = gastos.findIndex(g => g.id === editingId);
+            if (index !== -1) gastos[index] = updatedGasto;
+            
+            closeEdit();
+            handleSearch();
+            alert('Gasto atualizado com sucesso!');
+        }
+
+        function removerGasto(id) {
+            if (confirm('Tem certeza que deseja excluir este gasto?')) {
+                database.ref('gastos/' + id).remove();
+                gastos = gastos.filter(g => g.id !== id);
+                handleSearch();
+            }
+        }
+
+        document.getElementById('search-btn').addEventListener('click', handleSearch);
+        document.getElementById('clear-btn').addEventListener('click', clearSearch);
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSearch();
+        });
+
+        loadData();
+    </script>
+</body>
+</html>
