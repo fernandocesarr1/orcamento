@@ -1,165 +1,97 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Controle Orçamentário</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <style>
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #f8fafc;
-        }
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-        }
-        .float-animation {
-            animation: float 4s ease-in-out infinite;
-        }
-    </style>
-</head>
-<body>
-    <div class="min-h-screen bg-slate-100 flex items-center justify-center p-4 relative overflow-hidden">
-        <div class="absolute -top-40 -right-40 w-80 h-80 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 float-animation"></div>
-        <div class="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 float-animation" style="animation-delay: 1.5s;"></div>
-        
-        <div class="relative z-10 w-full max-w-md">
-            <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-                <div class="bg-gradient-to-br from-blue-500 to-purple-600 p-8 text-center">
-                    <div class="inline-block bg-white/30 p-4 rounded-full mb-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                    </div>
-                    <h1 class="text-3xl font-bold text-white tracking-tight">Bem-vindo(a)!</h1>
-                    <p class="text-white/90 text-sm mt-1">Seu Controle Orçamentário Familiar</p>
-                </div>
-                
-                <div class="p-8">
-                    <div id="firebase-warning" class="hidden bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded-lg mb-6">
-                        <p class="font-bold">Aviso</p>
-                        <p class="text-sm">A configuração do Firebase não foi encontrada. O app funcionará em modo de demonstração.</p>
-                    </div>
+import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TrendingUp, PieChart as PieChartIcon } from "lucide-react";
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Senha de Acesso</label>
-                        <div class="relative">
-                            <input
-                                type="password"
-                                id="password"
-                                placeholder="••••••••"
-                                class="w-full px-4 py-3 pr-10 border-2 border-slate-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-500 transition-all"
-                                autofocus
-                            />
-                            <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-                            </div>
-                        </div>
-                    </div>
+const ChartsSection = () => {
+  const currentYear = new Date().getFullYear();
+  const months = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ];
 
-                    <div id="error-message" class="hidden bg-red-100 border border-red-300 text-red-800 text-sm p-3 rounded-lg mb-4"></div>
-
-                    <button
-                        id="login-button"
-                        class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-xl font-bold text-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300"
-                    >
-                        Entrar
-                    </button>
-                </div>
+  return (
+    <div className="space-y-6">
+      <Card className="p-6 shadow-lg gradient-card">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-white" />
             </div>
-            <p class="text-center mt-6 text-xs text-slate-500">Seus dados são sincronizados com segurança.</p>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Evolução Mensal</h2>
+              <p className="text-sm text-muted-foreground">Gastos ao longo do ano</p>
+            </div>
+          </div>
+          <Select defaultValue={currentYear.toString()}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={currentYear.toString()}>{currentYear}</SelectItem>
+              <SelectItem value={(currentYear - 1).toString()}>{currentYear - 1}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        <div className="h-80 flex items-center justify-center bg-muted/30 rounded-xl">
+          <div className="text-center">
+            <TrendingUp className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Gráfico de evolução mensal</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Os gráficos serão exibidos quando houver dados
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 shadow-lg gradient-card">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 gradient-warning rounded-xl flex items-center justify-center">
+              <PieChartIcon className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Gastos por Categoria</h2>
+              <p className="text-sm text-muted-foreground">Distribuição mensal</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Select defaultValue="0">
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((month, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select defaultValue={currentYear.toString()}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={currentYear.toString()}>{currentYear}</SelectItem>
+                <SelectItem value={(currentYear - 1).toString()}>{currentYear - 1}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="h-80 flex items-center justify-center bg-muted/30 rounded-xl">
+          <div className="text-center">
+            <PieChartIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Gráfico de categorias</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Os gráficos serão exibidos quando houver dados
+            </p>
+          </div>
+        </div>
+      </Card>
     </div>
+  );
+};
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAgopSuSjeQ26UL85eYb11w4BbbNtBg5QE",
-            authDomain: "orcamento-familiar-dc2e6.firebaseapp.com",
-            databaseURL: "https://orcamento-familiar-dc2e6-default-rtdb.firebaseio.com",
-            projectId: "orcamento-familiar-dc2e6",
-            storageBucket: "orcamento-familiar-dc2e6.firebasestorage.app",
-            messagingSenderId: "21809188621",
-            appId: "1:21809188621:web:103d45c3353106ebf5aa44",
-            measurementId: "G-4E95DZRK3F"
-        };
-
-        let database;
-        let isFirebaseInitialized = false;
-
-        try {
-            if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("SUA_API_KEY")) {
-                firebase.initializeApp(firebaseConfig);
-                database = firebase.database();
-                isFirebaseInitialized = true;
-            } else {
-                document.getElementById('firebase-warning').classList.remove('hidden');
-            }
-        } catch (error) {
-            console.error("Erro ao inicializar Firebase:", error);
-            document.getElementById('firebase-warning').classList.remove('hidden');
-        }
-
-        const DEFAULT_PASSWORD = 'familia2024';
-
-        function simpleHash(str) {
-            let hash = 0;
-            for (let i = 0; i < str.length; i++) {
-                const char = str.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return hash.toString();
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            errorDiv.textContent = message;
-            errorDiv.classList.remove('hidden');
-        }
-
-        function handleLogin() {
-            const password = document.getElementById('password').value;
-            
-            if (!password) {
-                showError('Por favor, digite a senha.');
-                return;
-            }
-
-            if (!isFirebaseInitialized) {
-                showError('Firebase não está configurado corretamente.');
-                return;
-            }
-
-            const passwordHash = simpleHash(password);
-            
-            database.ref('auth/passwordHash').once('value', (snapshot) => {
-                const storedHash = snapshot.val();
-                
-                if (!storedHash) {
-                    database.ref('auth/passwordHash').set(simpleHash(DEFAULT_PASSWORD));
-                }
-                
-                if (storedHash === passwordHash || !storedHash) {
-                    sessionStorage.setItem('authenticated', 'true');
-                    window.location.href = 'adicionar.html';
-                } else {
-                    showError('Senha incorreta. Tente novamente.');
-                }
-            });
-        }
-
-        document.getElementById('login-button').addEventListener('click', handleLogin);
-        document.getElementById('password').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleLogin();
-        });
-
-        // Verificar se já está autenticado
-        if (sessionStorage.getItem('authenticated') === 'true') {
-            window.location.href = 'adicionar.html';
-        }
-    </script>
-</body>
-</html>
+export default ChartsSection;
